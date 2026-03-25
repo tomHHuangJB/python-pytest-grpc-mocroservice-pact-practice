@@ -15,10 +15,14 @@
 - Confirm both UI tests pass:
   - `test_order_page_creates_order_and_shows_confirmation`
   - `test_order_page_surfaces_downstream_errors`
+<<<<<<< HEAD
 - Run SQLite-backed integration tests with `unset PYTEST_PLUGINS && pytest tests/integration/test_fastapi_sqlite_api.py tests/integration/test_sqlite_repository.py`.
 - Focus on the failure-path tests that prove no data is written after dependency failure:
   - `test_fastapi_with_sqlite_repository_keeps_clean_state_after_failure`
   - `test_save_is_not_called_when_dependency_fails`
 - Confirm those tests pass and that their core assertion remains `repository.count() == 0` after the failure path.
 - If those assertions still pass, the SQLite-backed flow is still preventing partial writes when the downstream dependency fails.
+=======
+- Confirm SQLite-backed tests still show no partial writes after failures.
+>>>>>>> 0dfdd0b (Add senior QA docs, TestRail artifacts, and Docker setup)
 - Review GitHub Actions output for both Python versions.
