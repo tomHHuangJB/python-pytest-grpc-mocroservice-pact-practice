@@ -20,7 +20,6 @@ PACT_PROVIDER = "OrderPracticeApi"
 
 def _write_consumer_pact(output_dir: Path) -> Path:
     pact = Pact(PACT_CONSUMER, PACT_PROVIDER)
-    pact_file = output_dir / f"{PACT_CONSUMER.lower()}-{PACT_PROVIDER.lower()}.json"
 
     (
         pact.upon_receiving("a request to fetch an existing order")
@@ -69,7 +68,10 @@ def _write_consumer_pact(output_dir: Path) -> Path:
             assert created.order_id == "order-456"
 
     pact.write_file(output_dir)
-    return pact_file
+    pact_files = sorted(output_dir.glob("*.json"))
+    if not pact_files:
+        raise AssertionError("No pact file was written")
+    return pact_files[0]
 
 
 @pytest.mark.contract
