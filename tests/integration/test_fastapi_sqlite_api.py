@@ -28,6 +28,25 @@ def test_fastapi_with_sqlite_repository_persists_between_requests(tmp_path) -> N
 
 
 @pytest.mark.integration
+def test_fastapi_with_sqlite_repository_reuses_existing_order_for_same_idempotency_key(tmp_path) -> None:
+    repository = SqliteOrderRepository(str(tmp_path / "orders.db"))
+    inventory = ApiInventoryStub(mode="ok")
+    service = OrderService(repository=repository, inventory_client=inventory)
+    client = TestClient(create_app(order_service=service))
+    payload = {"customer_id": "cust-123", "sku": "sku-001", "quantity": 2, "unit_price": 19.99}
+    headers = {"Idempotency-Key": "sqlite-req-123"}
+
+    first_response = client.post("/orders", json=payload, headers=headers)
+    second_response = client.post("/orders", json=payload, headers=headers)
+
+    assert first_response.status_code == 201
+    assert second_response.status_code == 201
+    assert second_response.json()["order_id"] == first_response.json()["order_id"]
+    assert repository.count() == 1
+    assert inventory.calls == [("sku-001", 2)]
+
+
+@pytest.mark.integration
 def test_fastapi_with_sqlite_repository_keeps_clean_state_after_failure(tmp_path) -> None:
     repository = SqliteOrderRepository(str(tmp_path / "orders.db"))
     inventory = ApiInventoryStub(mode="timeout")

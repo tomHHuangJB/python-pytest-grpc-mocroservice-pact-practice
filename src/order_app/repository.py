@@ -6,9 +6,12 @@ from order_app.models import Order
 class InMemoryOrderRepository:
     def __init__(self) -> None:
         self._orders: list[Order] = []
+        self._orders_by_idempotency_key: dict[str, Order] = {}
 
-    def save(self, order: Order) -> None:
+    def save(self, order: Order, idempotency_key: str | None = None) -> None:
         self._orders.append(order)
+        if idempotency_key is not None:
+            self._orders_by_idempotency_key[idempotency_key] = order
 
     def list_all(self) -> list[Order]:
         return list(self._orders)
@@ -22,8 +25,12 @@ class InMemoryOrderRepository:
                 return order
         return None
 
+    def get_by_idempotency_key(self, idempotency_key: str) -> Order | None:
+        return self._orders_by_idempotency_key.get(idempotency_key)
+
     def clear(self) -> None:
         self._orders.clear()
+        self._orders_by_idempotency_key.clear()
 
 
 class SqliteOrderRepository:
@@ -44,18 +51,19 @@ class SqliteOrderRepository:
                     sku TEXT NOT NULL,
                     quantity INTEGER NOT NULL,
                     unit_price REAL NOT NULL,
-                    total_price REAL NOT NULL
+                    total_price REAL NOT NULL,
+                    idempotency_key TEXT UNIQUE
                 )
                 """
             )
 
-    def save(self, order: Order) -> None:
+    def save(self, order: Order, idempotency_key: str | None = None) -> None:
         with self._connect() as connection:
             connection.execute(
                 """
                 INSERT INTO orders (
-                    order_id, customer_id, sku, quantity, unit_price, total_price
-                ) VALUES (?, ?, ?, ?, ?, ?)
+                    order_id, customer_id, sku, quantity, unit_price, total_price, idempotency_key
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     order.order_id,
@@ -64,6 +72,7 @@ class SqliteOrderRepository:
                     order.quantity,
                     order.unit_price,
                     order.total_price,
+                    idempotency_key,
                 ),
             )
 
@@ -92,6 +101,18 @@ class SqliteOrderRepository:
                 WHERE order_id = ?
                 """,
                 (order_id,),
+            ).fetchone()
+        return self._row_to_order(row) if row else None
+
+    def get_by_idempotency_key(self, idempotency_key: str) -> Order | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT order_id, customer_id, sku, quantity, unit_price, total_price
+                FROM orders
+                WHERE idempotency_key = ?
+                """,
+                (idempotency_key,),
             ).fetchone()
         return self._row_to_order(row) if row else None
 

@@ -8,18 +8,24 @@ from order_app.models import (
     OrderNotFoundError,
     OutOfStockError,
 )
+from order_app.eventing import OrderCreatedEvent
 from order_app.pricing import calculate_total
 from order_app.repository import InMemoryOrderRepository
 
 
 class OrderService:
-    def __init__(self, repository: InMemoryOrderRepository, inventory_client, id_factory=None) -> None:
+    def __init__(self, repository: InMemoryOrderRepository, inventory_client, id_factory=None, event_bus=None) -> None:
         self.repository = repository
         self.inventory_client = inventory_client
         self.id_factory = id_factory or (lambda: str(uuid4()))
+        self.event_bus = event_bus
 
-    def create_order(self, request: CreateOrderRequest) -> Order:
+    def create_order(self, request: CreateOrderRequest, idempotency_key: str | None = None) -> Order:
         self._validate_request(request)
+        if idempotency_key:
+            existing_order = self.repository.get_by_idempotency_key(idempotency_key)
+            if existing_order is not None:
+                return existing_order
         total_price = calculate_total(request.unit_price, request.quantity)
 
         try:
@@ -37,7 +43,18 @@ class OrderService:
             unit_price=request.unit_price,
             total_price=total_price,
         )
-        self.repository.save(order)
+        self.repository.save(order, idempotency_key=idempotency_key)
+        if self.event_bus is not None:
+            self.event_bus.publish(
+                "order.created",
+                OrderCreatedEvent(
+                    order_id=order.order_id,
+                    customer_id=order.customer_id,
+                    sku=order.sku,
+                    quantity=order.quantity,
+                    total_price=order.total_price,
+                ),
+            )
         return order
 
     def get_order(self, order_id: str) -> Order:

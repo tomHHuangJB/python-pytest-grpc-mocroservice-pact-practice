@@ -1,3 +1,5 @@
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 
@@ -27,3 +29,15 @@ class OrderSummaryPayload(BaseModel):
     sku: str
     quantity: int
     total_price: float
+
+
+class GraphQLRequestPayload(BaseModel):
+    query: str = Field(min_length=1)
+    variables: dict[str, Any] = Field(default_factory=dict)
+
+
+class InventoryWebhookPayload(BaseModel):
+    event_type: str = Field(min_length=1)
+    sku: str = Field(min_length=1)
+    quantity: int = Field(gt=0)
+    status: str = Field(min_length=1)

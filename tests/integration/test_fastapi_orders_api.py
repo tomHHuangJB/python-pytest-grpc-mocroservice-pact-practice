@@ -44,6 +44,22 @@ def test_fastapi_create_order_returns_201_and_persists_state() -> None:
 
 
 @pytest.mark.api
+def test_fastapi_create_order_with_same_idempotency_key_does_not_create_duplicates() -> None:
+    client, repository, inventory = build_test_client()
+    payload = {"customer_id": "cust-123", "sku": "sku-001", "quantity": 2, "unit_price": 19.99}
+    headers = {"Idempotency-Key": "req-123"}
+
+    first_response = client.post("/orders", json=payload, headers=headers)
+    second_response = client.post("/orders", json=payload, headers=headers)
+
+    assert first_response.status_code == 201
+    assert second_response.status_code == 201
+    assert second_response.json()["order_id"] == first_response.json()["order_id"]
+    assert repository.count() == 1
+    assert inventory.calls == [("sku-001", 2)]
+
+
+@pytest.mark.api
 def test_fastapi_create_order_returns_422_for_invalid_payload() -> None:
     client, repository, _ = build_test_client()
 

@@ -12,7 +12,12 @@ This repo is a focused practice project for API and Microservice testing. It is 
 - SQLite-backed persistence testing
 - API client tests with response validation
 - FastAPI endpoint tests
+- SOAP service tests
+- GraphQL API tests
 - gRPC microservice tests
+- WebSocket realtime tests
+- webhook callback tests
+- message-driven event tests
 - Playwright UI tests
 - Pact consumer/provider contract tests
 
@@ -26,12 +31,17 @@ The sample domain is an order service with:
 - SQLite-backed repository option
 - validation and error handling
 - HTTP API layer with FastAPI
+- SOAP endpoint for XML-based request/response coverage
+- GraphQL endpoint for query and mutation coverage
 - API client validation using `httpx`
 - gRPC inventory microservice and client
+- WebSocket endpoint for realtime order events
+- webhook receiver for callback-style integration
+- in-memory event bus for message-driven order events
 - HTML demo page for UI automation
 - Pact-ready HTTP contract surface with create and read endpoints
 
-This keeps the examples close to system-testing discussions you may need in the interview.
+This keeps the examples close to realistic system-testing and service-validation discussions.
 
 ## Quick Start
 
@@ -41,7 +51,7 @@ python3 -m venv .venv
 unalias deactivate 2>/dev/null
 source .venv/bin/activate
 pip install -e ".[dev]"
-python -m playwright install chromium
+./scripts/install_playwright_chromium.sh
 unset PYTEST_PLUGINS
 pytest
 ```
@@ -56,6 +66,9 @@ If you want a shorter command path, use the helper scripts:
 ./scripts/run_pytest.sh
 ./scripts/run_pytest_non_ui.sh
 ./scripts/generate_grpc_stubs.sh
+./scripts/install_playwright_chromium.sh
+./scripts/run_docker_stack.sh
+./scripts/stop_docker_stack.sh
 ```
 
 ### First-Time Setup
@@ -67,7 +80,7 @@ unalias deactivate 2>/dev/null
 source .venv/bin/activate
 pip install -e ".[dev]"
 python -m grpc_tools.protoc -I proto --python_out=src --grpc_python_out=src proto/order_app/grpc_contracts/inventory.proto
-python -m playwright install chromium
+./scripts/install_playwright_chromium.sh
 unset PYTEST_PLUGINS
 pytest
 ```
@@ -89,11 +102,29 @@ unset PYTEST_PLUGINS && pytest -m unit
 unset PYTEST_PLUGINS && pytest -m integration
 unset PYTEST_PLUGINS && pytest -m api
 unset PYTEST_PLUGINS && pytest -m grpc
+unset PYTEST_PLUGINS && pytest -m ui
+unset PYTEST_PLUGINS && pytest -m contract
+```
+
+## Environment Setup
+
+The repo now includes a simple Docker-based environment for local app startup:
+
+```bash
+./scripts/run_docker_stack.sh
+```
+
+The FastAPI app will be available at `http://localhost:8000`.
+
+To stop it:
+
+```bash
+./scripts/stop_docker_stack.sh
 ```
 
 ## Practice Goals
 
-Use this repo to practice:
+This repo can be used to answer the following questions:
 
 - how fixtures reduce duplication
 - how parametrization improves coverage
@@ -103,23 +134,32 @@ Use this repo to practice:
 - how to validate API responses and error payloads
 - how to test FastAPI endpoints without external environments
 - how to test a microservice dependency over gRPC
+- how to test SOAP XML request/response handling
+- how to test GraphQL query and mutation flows
+- how to test WebSocket realtime event delivery
+- how to test inbound webhooks safely
+- how to test message-driven event publishing and subscribers
 - how to validate cross-service effects and failure handling
 - how to verify persistence with SQLite-backed tests
 - how to write Playwright UI tests with pytest
 - how to verify HTTP consumer/provider contracts with Pact
 
-## Suggested Interview Drills
+Questions this repo helps you answer:
 
-1. Explain what each fixture in `tests/conftest.py` does.
-2. Walk through one parametrized test and explain why it is better than separate copy-paste tests.
-3. Explain how the inventory stub is used to simulate success, timeout, and out-of-stock behavior.
-4. Explain why the service validates DB-like state after failure scenarios.
-5. Walk through the API client tests and explain how schema validation catches payload drift.
-6. Walk through the FastAPI endpoint tests and explain dependency override usage.
-7. Walk through the gRPC tests and explain how service-to-service failures are mapped into domain errors.
-8. Walk through the SQLite tests and explain how they prove no partial writes.
-9. Walk through the Pact tests and explain consumer/provider verification.
-10. Walk through the Playwright UI tests and explain where browser tests add value over API tests.
+1. What does each fixture in `tests/conftest.py` do, and why is fixture-based setup better than repeating setup inside every test?
+2. Which parametrized test best shows how one test can cover multiple rules without copy-paste duplication?
+3. How is the inventory stub used to simulate success, timeout, and out-of-stock behavior while keeping tests deterministic?
+4. How do the tests prove that failure scenarios do not leave partial writes behind?
+5. How do the API client tests validate both success payloads and schema drift?
+6. How do the FastAPI endpoint tests exercise the service without needing any external environment?
+7. How do the gRPC tests show mapping from service-to-service failures into domain-level errors?
+8. How do the SQLite-backed tests prove persistence behavior and no-partial-write guarantees with real storage?
+9. How do the Pact tests prove consumer and provider stay aligned?
+10. Why are the Playwright UI tests intentionally narrow, and what value do they add beyond API tests?
+11. How does the SOAP endpoint show XML-based service testing?
+12. How do the GraphQL tests prove both mutation and query behavior?
+13. How do the WebSocket and webhook tests cover realtime and callback integrations?
+14. How does the event-bus example demonstrate message-driven testing?
 
 ## Useful Commands
 
@@ -136,11 +176,10 @@ unset PYTEST_PLUGINS && pytest --cov=order_app --cov-report=term-missing
 
 ### UI Setup
 
-Playwright tests need a browser installed:
+Playwright Chromium installation is part of the standard setup:
 
 ```bash
-source .venv/bin/activate
-python -m playwright install chromium
+./scripts/install_playwright_chromium.sh
 unset PYTEST_PLUGINS && pytest -m ui
 ```
 
@@ -157,12 +196,21 @@ It:
 
 ## QA Docs
 
-The `docs/` folder contains interview-relevant QA artifacts:
+The `docs/` folder contains QA planning, execution, and governance artifacts:
 
 - `test-plan.md`
+- `test-strategy.md`
+- `test-cases.md`
+- `agile-qa-delivery-model.md`
+- `test-estimation.md`
+- `design-review-checklist.md`
+- `tooling-mapping.md`
 - `regression-checklist.md`
 - `defect-report-example.md`
 - `execution-summary-example.md`
+- `testrail-test-cases.csv`
+- `testrail-test-runs.csv`
+- `traceability-matrix.md`
 
 ## Troubleshooting
 
@@ -217,10 +265,10 @@ pytest
 
 ### Playwright Browser Not Installed
 
-If UI tests fail because Chromium is missing, install it with:
+If UI tests fail because Chromium is missing, complete the required browser setup with:
 
 ```bash
-python -m playwright install chromium
+./scripts/install_playwright_chromium.sh
 ```
 
 Then rerun:
@@ -230,17 +278,20 @@ unset PYTEST_PLUGINS
 pytest -m ui
 ```
 
-## Microservice Practice
+## Service Styles Covered
 
-The repo now has two service interaction styles:
+The repo now covers these major service and integration styles:
 
-- HTTP via FastAPI for endpoint and client testing
-- gRPC for service-to-service inventory reservation
+- REST over HTTP with FastAPI endpoints under `src/order_app/api.py`
+- SOAP over XML with `POST /soap/orders`
+- GraphQL with `POST /graphql`
+- gRPC with the inventory service under `src/order_app/grpc_microservices/`
+- WebSocket realtime messaging with `/ws/orders`
+- webhook callbacks with `POST /webhooks/inventory-events`
+- message-driven integration with `src/order_app/eventing.py`
 
-The gRPC path is useful for interview prep because it lets you discuss:
+The tests show how each style is validated:
 
-- protobuf contracts
-- generated stubs
-- service dependency failures
-- timeout mapping
-- no partial writes after downstream failure
+- REST and HTTP contract coverage in `tests/integration/test_fastapi_orders_api.py` and `tests/contracts/test_order_api_contracts.py`
+- SOAP, GraphQL, WebSocket, webhook, and event-bus coverage in `tests/integration/test_additional_service_types.py`
+- gRPC service-to-service coverage in `tests/integration/test_order_workflow_grpc.py`

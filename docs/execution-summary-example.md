@@ -12,12 +12,11 @@
 - api
 - grpc
 - contract
-- ui when browser dependencies are installed
+- ui
 
 ## Result Summary
 
-- Passed: core service, API, gRPC, SQLite, and contract tests
-- Conditional: UI browser tests require Playwright browser installation
+- Passed: core service, API, gRPC, SQLite, contract, and UI tests
 
 ## Release Recommendation
 

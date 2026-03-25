@@ -1,8 +1,24 @@
 # Regression Checklist
 
 - Run unit, integration, API, and gRPC pytest markers.
-- Regenerate protobuf stubs and verify there is no diff.
-- Run contract tests to confirm consumer and provider stay aligned.
-- Run Playwright UI tests if browser dependencies are available.
-- Confirm SQLite-backed tests still show no partial writes after failures.
+- Regenerate protobuf stubs with `./scripts/generate_grpc_stubs.sh`.
+- Verify generated gRPC files did not change by running `git diff -- src/order_app/grpc_contracts`.
+- If `git diff -- src/order_app/grpc_contracts` shows no output, there is no diff and the generated files are in sync with `proto/order_app/grpc_contracts/inventory.proto`.
+- Run contract tests with `unset PYTEST_PLUGINS && pytest -m contract`.
+- To run only the Pact suite directly, use `unset PYTEST_PLUGINS && pytest tests/contracts/test_order_api_contracts.py`.
+- Confirm both contract tests pass:
+  - `test_consumer_contract_generates_pact_file`
+  - `test_provider_verifies_generated_contract`
+- If both pass, the consumer expectations and provider implementation are aligned for the current create-order and get-order interactions.
+- Install Chromium with `./scripts/install_playwright_chromium.sh`.
+- Run UI tests with `unset PYTEST_PLUGINS && pytest -m ui`.
+- Confirm both UI tests pass:
+  - `test_order_page_creates_order_and_shows_confirmation`
+  - `test_order_page_surfaces_downstream_errors`
+- Run SQLite-backed integration tests with `unset PYTEST_PLUGINS && pytest tests/integration/test_fastapi_sqlite_api.py tests/integration/test_sqlite_repository.py`.
+- Focus on the failure-path tests that prove no data is written after dependency failure:
+  - `test_fastapi_with_sqlite_repository_keeps_clean_state_after_failure`
+  - `test_save_is_not_called_when_dependency_fails`
+- Confirm those tests pass and that their core assertion remains `repository.count() == 0` after the failure path.
+- If those assertions still pass, the SQLite-backed flow is still preventing partial writes when the downstream dependency fails.
 - Review GitHub Actions output for both Python versions.
